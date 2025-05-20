@@ -49,7 +49,14 @@
         transform: translateY(0);
     }
 }
-
+@media(max-width:768px){
+    .main-container{
+        background-image: url(../welcomecomponent/mobilewelcome.jpg);
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+}
 .signup-heading {
     font-size: 2.5rem;
     color: #ffffff;

@@ -15,7 +15,14 @@
     overflow: hidden;
     position: relative;
 }
-
+@media(max-width:768px){
+    .main-container{
+        background-image: url(mobilewelcome.jpg);
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+}
 /* Decorative elements */
 .main-container::before {
     content: '';
