@@ -50,7 +50,7 @@
     }
 }
 @media(max-width:768px){
-    .main-container{
+    .signup-container{
         background-image: url(../welcomecomponent/mobilewelcome.jpg);
         background-size: cover;
         background-position: center;

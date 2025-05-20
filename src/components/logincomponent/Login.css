@@ -49,7 +49,7 @@
   to { opacity: 1; transform: translateY(0); }
 }
 @media(max-width:768px){
-    .main-container{
+    .login-container{
         background-image: url(../welcomecomponent/mobilewelcome.jpg);
         background-size: cover;
         background-position: center;
