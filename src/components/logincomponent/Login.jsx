@@ -83,7 +83,7 @@ const Login = () => {
               <span className="spinner"></span>
             ) : (
               <>
-                <Link to="/story-generation" className='linkdd'><span>Log In</span></Link>
+                <span>Log In</span>
                 <svg className="arrow-icon" viewBox="0 0 24 24">
                   <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
                 </svg>
@@ -94,7 +94,8 @@ const Login = () => {
 
         <div className="login-footer">
           <p>Don't have an account? <Link to="/signup" className="signup-link">Sign up</Link></p>
-          <Link to="/" className='signup-link'>Go back to Home</Link>
+          <Link to="/" className='signup-link'>Go back to Home</Link><br />
+          <Link to="/story-generation" className='signup-link'>Go to Story Generation</Link>
         </div>
       </div>
 
