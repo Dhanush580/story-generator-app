@@ -169,8 +169,8 @@ export default function DeepSeekChat() {
         
         {/* Chat Header */}
         <div className="chat-header">
-          <h1 className="chat-title">Story Weaver</h1>
-          <p className="chat-subtitle">Powered by DeepSeek AI</p>
+          <h1 className="chat-title">BOT TALES</h1>
+          
         </div>
         
         {/* Story Display Area */}
