@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { InferenceClient } from "@huggingface/inference";
 import "../chatcomponent/ChatComponent.css";
+import {Link} from "react-router-dom";
 
 const client = new InferenceClient("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");
 
@@ -8,58 +9,190 @@ export default function DeepSeekChat() {
   const [input, setInput] = useState("");
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
+  const [conversations, setConversations] = useState([]);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Load saved conversations from localStorage
+  useEffect(() => {
+    const savedConversations = JSON.parse(localStorage.getItem('storyConversations')) || [];
+    setConversations(savedConversations);
+  }, []);
 
   const handleSubmit = async () => {
-  if (!input.trim()) return;
+    if (!input.trim()) return;
 
-  setLoading(true);
-  setResponse("");
+    setLoading(true);
+    setResponse("");
 
-  try {
-    const chatCompletion = await client.chatCompletion({
-      provider: "novita",
-      model: "deepseek-ai/DeepSeek-R1",
-      messages: [
-        {
-          role: "system",
-          content: "You are a story-writing assistant. Only generate stories. If the user asks anything else, say: 'Sorry, I can only help with story generation.'",
-        },
-        {
-          role: "user",
-          content: input,
-        },
-      ],
-    });
+    try {
+      const chatCompletion = await client.chatCompletion({
+        provider: "novita",
+        model: "deepseek-ai/DeepSeek-R1",
+        messages: [
+          {
+            role: "system",
+            content: "You are a story-writing assistant. Only generate stories. If the user asks anything else, say: 'Sorry, I can only help with story generation.'",
+          },
+          {
+            role: "user",
+            content: input,
+          },
+        ],
+      });
 
-    // Raw response
-    let rawStory = chatCompletion.choices[0].message.content;
+      let rawStory = chatCompletion.choices[0].message.content;
+      let cleanedStory = rawStory
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/\*{2}([^*]+)\*{2}/g, "$1")
+        .replace(/\*([^*]+)\*/g, "$1")
+        .replace(/---[\s\S]*/g, "")
+        .trim();
 
-    // Clean the response
-    let cleanedStory = rawStory
-      .replace(/<think>[\s\S]*?<\/think>/gi, '') // remove <think> tags
-      .replace(/\*{2}([^*]+)\*{2}/g, "$1") // remove **bold**
-      .replace(/\*([^*]+)\*/g, "$1") // remove *italic*
-      .replace(/---[\s\S]*/g, "") // remove trailing suggestions or footers like "--- Hope you enjoyed..."
-      .trim();
+      setResponse(cleanedStory);
+      
+      // Save the new conversation
+      const newConversation = {
+        id: Date.now(),
+        title: input.substring(0, 30) + (input.length > 30 ? "..." : ""),
+        prompt: input,
+        story: cleanedStory,
+        date: new Date().toLocaleString()
+      };
+      
+      const updatedConversations = [newConversation, ...conversations];
+      setConversations(updatedConversations);
+      localStorage.setItem('storyConversations', JSON.stringify(updatedConversations));
+      setActiveConversation(newConversation.id);
+    } catch (error) {
+      console.error("Chat error:", error);
+      setResponse("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setResponse(cleanedStory);
-  } catch (error) {
-    console.error("Chat error:", error);
-    setResponse("Something went wrong. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+  const startNewConversation = () => {
+    setInput("");
+    setResponse("");
+    setActiveConversation(null);
+    if (window.innerWidth < 768) {
+      setMobileSidebarOpen(false);
+    }
+  };
 
+  const loadConversation = (id) => {
+    const conversation = conversations.find(c => c.id === id);
+    if (conversation) {
+      setInput(conversation.prompt);
+      setResponse(conversation.story);
+      setActiveConversation(id);
+    }
+    if (window.innerWidth < 768) {
+      setMobileSidebarOpen(false);
+    }
+  };
+
+  const deleteConversation = (id, e) => {
+    e.stopPropagation();
+    const updatedConversations = conversations.filter(c => c.id !== id);
+    setConversations(updatedConversations);
+    localStorage.setItem('storyConversations', JSON.stringify(updatedConversations));
+    
+    if (activeConversation === id) {
+      startNewConversation();
+    }
+  };
 
   return (
-    <div className="deepseek-wrapper">
-      <div className="deepseek-container">
+    <div className="app-container">
+      {/* Sidebar/Navbar */}
+      <div className={`sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-header">
+          <button className="new-chat-btn" onClick={startNewConversation}>
+            <svg viewBox="0 0 24 24">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            New Story
+          </button>
+          <button className="mobile-close-btn" onClick={() => setMobileSidebarOpen(false)}>
+            <svg viewBox="0 0 24 24">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div className="conversation-list">
+          {conversations.map(conv => (
+            <div 
+              key={conv.id}
+              className={`conversation-item ${activeConversation === conv.id ? 'active' : ''}`}
+              onClick={() => loadConversation(conv.id)}
+            >
+              <div className="conversation-title">{conv.title}</div>
+              <div className="conversation-date">{conv.date}</div>
+              <button 
+                className="delete-conversation"
+                onClick={(e) => deleteConversation(conv.id, e)}
+              >
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+        
+        <div className="sidebar-footer">
+          <Link to="/login" className="login-link">
+          <button className="logout-btn">
+            <svg viewBox="0 0 24 24">
+              <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+            </svg>
+            Logout
+          </button>
+          </Link>
+        </div>
+      </div>
+      
+      {/* Main Chat Area */}
+      <div className="chat-container">
+        {/* Mobile sidebar toggle */}
+        <button 
+          className="mobile-sidebar-toggle"
+          onClick={() => setMobileSidebarOpen(true)}
+        >
+          <svg viewBox="0 0 24 24">
+            <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+          </svg>
+        </button>
+        
+        {/* Chat Header */}
         <div className="chat-header">
           <h1 className="chat-title">Story Weaver</h1>
           <p className="chat-subtitle">Powered by DeepSeek AI</p>
         </div>
         
+        {/* Story Display Area */}
+        <div className="story-display">
+          {response ? (
+            <div className="story-content">
+              <p>{response}</p>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="magic-wand-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M20 7h-4V5l-2-2h-4L8 5v2H4c-1.1 0-2 .9-2 2v5c0 .75.4 1.38 1 1.73V19c0 1.11.89 2 2 2h14c1.11 0 2-.89 2-2v-3.28c.59-.35 1-.99 1-1.72V9c0-1.1-.9-2-2-2zM10 5h4v2h-4V5zM4 9h16v5h-5v-3H9v3H4V9zm9 6h-2v-2h2v2zm6 4H5v-3h4v1h6v-1h4v3z"/>
+                </svg>
+              </div>
+              <h3>Create Your First Story</h3>
+              <p>Enter a prompt below to generate a magical story</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Input Area */}
         <div className="input-section">
           <textarea
             className="story-input"
@@ -67,6 +200,12 @@ export default function DeepSeekChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
           />
           <button 
             className={`generate-btn ${loading ? 'loading' : ''}`} 
@@ -85,26 +224,6 @@ export default function DeepSeekChat() {
             )}
           </button>
         </div>
-        
-        {response && (
-          <div className="output-section">
-            <div className="response-header">
-              <h3>Your Enchanted Tale</h3>
-              <button 
-                className="copy-btn"
-                onClick={() => navigator.clipboard.writeText(response)}
-                title="Copy to clipboard"
-              >
-                <svg viewBox="0 0 24 24">
-                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                </svg>
-              </button>
-            </div>
-            <div className="response-content">
-              <p>{response}</p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
