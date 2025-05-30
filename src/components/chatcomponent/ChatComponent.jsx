@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { InferenceClient } from "@huggingface/inference";
 import "../chatcomponent/ChatComponent.css";
-import {Link} from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const client = new InferenceClient("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");
 
@@ -12,6 +12,8 @@ export default function DeepSeekChat() {
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [generatedVideo, setGeneratedVideo] = useState(null);
 
   // Load saved conversations from localStorage
   useEffect(() => {
@@ -24,6 +26,7 @@ export default function DeepSeekChat() {
 
     setLoading(true);
     setResponse("");
+    setGeneratedVideo(null);
 
     try {
       const chatCompletion = await client.chatCompletion({
@@ -72,9 +75,38 @@ export default function DeepSeekChat() {
     }
   };
 
+  const generateVideoFromStory = async () => {
+    if (!response) return;
+    
+    setVideoLoading(true);
+    setGeneratedVideo(null);
+    
+    try {
+      // Extract the first sentence or a short description from the story
+      const videoPrompt = response.split('.')[0] || "A scene from the story";
+      
+      const videoResponse = await client.textToVideo({
+        provider: "replicate",
+        model: "Lightricks/LTX-Video",
+        inputs: {
+          prompt: videoPrompt,
+          // You can add more parameters here as needed
+        },
+      });
+      
+      setGeneratedVideo(videoResponse);
+    } catch (error) {
+      console.error("Video generation error:", error);
+      alert("Failed to generate video. Please try again.");
+    } finally {
+      setVideoLoading(false);
+    }
+  };
+
   const startNewConversation = () => {
     setInput("");
     setResponse("");
+    setGeneratedVideo(null);
     setActiveConversation(null);
     if (window.innerWidth < 768) {
       setMobileSidebarOpen(false);
@@ -87,6 +119,7 @@ export default function DeepSeekChat() {
       setInput(conversation.prompt);
       setResponse(conversation.story);
       setActiveConversation(id);
+      setGeneratedVideo(null);
     }
     if (window.innerWidth < 768) {
       setMobileSidebarOpen(false);
@@ -170,7 +203,6 @@ export default function DeepSeekChat() {
         {/* Chat Header */}
         <div className="chat-header">
           <h1 className="chat-title">BOT TALES</h1>
-          
         </div>
         
         {/* Story Display Area */}
@@ -178,11 +210,32 @@ export default function DeepSeekChat() {
           {response ? (
             <div className="story-content">
               <p>{response}</p>
+              {!generatedVideo && (
+                <button 
+                  className={`generate-video-btn ${videoLoading ? 'loading' : ''}`}
+                  onClick={generateVideoFromStory}
+                  disabled={videoLoading}
+                >
+                  {videoLoading ? (
+                    <span className="spinner"></span>
+                  ) : (
+                    "Generate Video from Story"
+                  )}
+                </button>
+              )}
+              {generatedVideo && (
+                <div className="video-container">
+                  <video controls width="100%">
+                    <source src={generatedVideo} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              )}
             </div>
           ) : (
             <div className="empty-state">
               <div className="magic-wand-icon">
-                <span class="material-symbols-outlined robo-icon">
+                <span className="material-symbols-outlined robo-icon">
                   smart_toy
                 </span>
               </div>
@@ -217,8 +270,8 @@ export default function DeepSeekChat() {
             ) : (
               <>
                 <span>Generate</span>
-                <span class="material-symbols-outlined">
-                   send
+                <span className="material-symbols-outlined">
+                  send
                 </span>
               </>
             )}

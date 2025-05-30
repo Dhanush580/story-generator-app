@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './Signup.css';
+import { useNavigate } from 'react-router-dom'; 
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const Signup = () => {
     const [formData, setFormData] = useState({
@@ -10,6 +12,9 @@ const Signup = () => {
         confirmPassword: ''
     });
     const [passwordStrength, setPasswordStrength] = useState(0);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const navigate = useNavigate();
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -20,7 +25,6 @@ const Signup = () => {
     };
 
     useEffect(() => {
-        // Calculate password strength
         if (formData.password) {
             let strength = 0;
             if (formData.password.length > 5) strength += 1;
@@ -34,20 +38,53 @@ const Signup = () => {
         }
     }, [formData.password]);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+
         if (formData.password !== formData.confirmPassword) {
             alert("Passwords don't match!");
             return;
         }
-        console.log('Signup data:', formData);
-        // Handle signup logic here
+
+        try {
+            const response = await fetch('http://localhost:5000/api/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: formData.name,
+                    email: formData.email,
+                    password: formData.password
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.message || "Signup failed");
+                return;
+            }
+            alert("Signup successful!");
+            navigate('/story-generation');
+        } catch (err) {
+            alert("Server error");
+            console.error(err);
+        }
     };
 
     const getStrengthColor = () => {
         if (passwordStrength < 30) return '#ff4d4d';
         if (passwordStrength < 70) return '#ffcc00';
         return '#00cc66';
+    };
+
+    const togglePasswordVisibility = () => {
+        setShowPassword(!showPassword);
+    };
+
+    const toggleConfirmPasswordVisibility = () => {
+        setShowConfirmPassword(!showConfirmPassword);
     };
 
     return (
@@ -81,9 +118,9 @@ const Signup = () => {
                         <label className="input-label">Email Address</label>
                     </div>
 
-                    <div className="input-group">
+                    <div className="input-group password-input-group">
                         <input
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             name="password"
                             value={formData.password}
                             onChange={handleChange}
@@ -92,6 +129,13 @@ const Signup = () => {
                             required
                         />
                         <label className="input-label">Password</label>
+                        <button 
+                            type="button" 
+                            className="password-toggle"
+                            onClick={togglePasswordVisibility}
+                        >
+                            {showPassword ? <FaEyeSlash /> : <FaEye />}
+                        </button>
                         <div className="password-strength">
                             <div 
                                 className="strength-bar" 
@@ -103,9 +147,9 @@ const Signup = () => {
                         </div>
                     </div>
 
-                    <div className="input-group">
+                    <div className="input-group password-input-group">
                         <input
-                            type="password"
+                            type={showConfirmPassword ? "text" : "password"}
                             name="confirmPassword"
                             value={formData.confirmPassword}
                             onChange={handleChange}
@@ -114,6 +158,13 @@ const Signup = () => {
                             required
                         />
                         <label className="input-label">Confirm Password</label>
+                        <button 
+                            type="button" 
+                            className="password-toggle"
+                            onClick={toggleConfirmPasswordVisibility}
+                        >
+                            {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                        </button>
                     </div>
 
                     <button type="submit" className="signup-btn">
