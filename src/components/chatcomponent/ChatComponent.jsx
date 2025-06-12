@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { InferenceClient } from "@huggingface/inference";
 import "../chatcomponent/ChatComponent.css";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const client = new InferenceClient("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");
 
@@ -14,12 +15,39 @@ export default function DeepSeekChat() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
   const [generatedVideo, setGeneratedVideo] = useState(null);
-
+  const navigate = useNavigate();
   // Load saved conversations from localStorage
   useEffect(() => {
-    const savedConversations = JSON.parse(localStorage.getItem('storyConversations')) || [];
-    setConversations(savedConversations);
-  }, []);
+  const token = localStorage.getItem('token');
+  if (!token) {
+    navigate('/login');
+    return;
+  }
+
+  fetch('http://localhost:5000/api/mystories', {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (Array.isArray(data)) {
+        setConversations(data.map(story => ({
+          id: story._id,
+          title: story.prompt.substring(0, 30) + (story.prompt.length > 30 ? "..." : ""),
+          prompt: story.prompt,
+          story: story.story,
+          date: new Date(story.createdAt).toLocaleString()
+        })));
+      } else {
+        console.error('Unexpected response:', data);
+      }
+    })
+    .catch(err => {
+      console.error('Error fetching stories:', err);
+    });
+}, []);
+
 
   const handleSubmit = async () => {
     if (!input.trim()) return;
@@ -53,7 +81,19 @@ export default function DeepSeekChat() {
         .trim();
 
       setResponse(cleanedStory);
-      
+      const token = localStorage.getItem('token');
+      await fetch('http://localhost:5000/api/story', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          prompt: input,
+          story: cleanedStory
+        })
+      });
+
       // Save the new conversation
       const newConversation = {
         id: Date.now(),
@@ -136,7 +176,10 @@ export default function DeepSeekChat() {
       startNewConversation();
     }
   };
-
+  const handleLogout = () => {
+    localStorage.removeItem('token'); // Remove JWT token
+    navigate('/login');               // Redirect to login page
+  };
   return (
     <div className="app-container">
       {/* Sidebar/Navbar */}
@@ -178,7 +221,7 @@ export default function DeepSeekChat() {
         
         <div className="sidebar-footer">
           <Link to="/login" className="login-link">
-          <button className="logout-btn">
+          <button className="logout-btn" onClick={handleLogout}>
             <svg viewBox="0 0 24 24">
               <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
             </svg>

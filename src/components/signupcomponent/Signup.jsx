@@ -65,7 +65,6 @@ const Signup = () => {
                 alert(data.message || "Signup failed");
                 return;
             }
-            alert("Signup successful!");
             navigate('/story-generation');
         } catch (err) {
             alert("Server error");
@@ -86,6 +85,7 @@ const Signup = () => {
     const toggleConfirmPasswordVisibility = () => {
         setShowConfirmPassword(!showConfirmPassword);
     };
+    
 
     return (
         <div className="signup-container">
